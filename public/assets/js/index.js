@@ -5,7 +5,6 @@ function refreshRules() {
             return response.json();
         })
         .then(config => {
-            console.log('Config received:', config);
             document.getElementById('group-id').value = config.groupId || '';
             document.getElementById('user-email').textContent = config.userEmail || 'E-posta adresi alınamadı';
             const rulesDiv = document.getElementById('rules');
@@ -114,7 +113,6 @@ function checkWhatsAppStatus() {
             const whatsappLogout = document.getElementById('whatsapp-logout');
             const groupSelectSection = document.getElementById('group-select-section');
             const whatsappError = document.getElementById('whatsapp-error');
-            console.log('[DEBUG] WhatsApp durumu:', data);
             if (data.qrCode) {
                 whatsappQr.src = data.qrCode;
                 whatsappSection.style.display = 'block';
@@ -140,7 +138,7 @@ function checkWhatsAppStatus() {
             }
         })
         .catch(err => {
-            console.error('[ERROR] WhatsApp durumu alınırken hata:', err);
+            console.error('WhatsApp durumu alınırken hata:', err);
             document.getElementById('whatsapp-status').textContent = 'WhatsApp bağlantı durumu alınamadı';
             document.getElementById('whatsapp-error').style.display = 'block';
             document.getElementById('whatsapp-error').textContent = 'Bağlantı hatası: ' + err.message;
@@ -169,7 +167,7 @@ function loadGroups() {
             }
         })
         .catch(err => {
-            console.error('[ERROR] Gruplar alınırken hata:', err);
+            console.error('Gruplar alınırken hata:', err);
             document.getElementById('group-select').innerHTML = '<option value="">Grup yüklenemedi</option>';
             document.getElementById('whatsapp-error').style.display = 'block';
             document.getElementById('whatsapp-error').textContent = 'Gruplar yüklenemedi: ' + err.message;
@@ -190,7 +188,6 @@ function whatsappLogout() {
     })
         .then(response => response.json())
         .then(data => {
-            console.log('[DEBUG] Çıkış yapıldı:', data.message);
             document.getElementById('group-id').value = '';
             document.getElementById('group-select').innerHTML = '<option value="">Bir grup seçin...</option>';
             document.getElementById('group-select-section').style.display = 'none';
@@ -202,7 +199,7 @@ function whatsappLogout() {
             setTimeout(checkWhatsAppStatus, 1000);
         })
         .catch(err => {
-            console.error('[ERROR] Çıkış hatası:', err);
+            console.error('Çıkış hatası:', err);
             document.getElementById('whatsapp-status').textContent = 'Çıkış başarısız';
             document.getElementById('whatsapp-error').style.display = 'block';
             document.getElementById('whatsapp-error').textContent = 'Çıkış hatası: ' + err.message;

@@ -2,13 +2,11 @@ const express = require('express');
 const router = express.Router();
 const fs = require('fs');
 const { google } = require('googleapis');
-const whatsapp = require('../services/whatsapp'); // Singleton modül
+const whatsapp = require('../services/whatsapp');
 const { authorize, getNewAuthUrl, completeAuth, getUserEmail } = require('../services/gmail');
 const { config, processedEmails, CONFIG_PATH, PROCESSED_EMAILS_PATH } = require('../config');
+const path = require('path');
 
-// Modül ID'sini doğrulamak için
-const moduleId = Math.random().toString(36).substring(7);
-console.log('[DEBUG] API modülü yüklendi. Modül ID:', moduleId);
 
 // API Endpoints
 router.get('/config', async (req, res) => {
@@ -17,7 +15,6 @@ router.get('/config', async (req, res) => {
     const userEmail = await getUserEmail(auth);
     res.json({ ...config, userEmail });
   } catch (err) {
-    console.error('API config hatası:', err.message, 'Modül ID:', moduleId);
     res.status(500).json({ error: 'E-posta adresi alınamadı' });
   }
 });
@@ -59,7 +56,6 @@ router.get('/reauthorize', async (req, res) => {
     const { authUrl } = await getNewAuthUrl();
     res.json({ authUrl });
   } catch (err) {
-    console.error('Yetkilendirme URL’si alınırken hata:', err.message, 'Modül ID:', moduleId);
     res.status(500).json({ error: 'Yetkilendirme URL’si alınamadı' });
   }
 });
@@ -74,13 +70,11 @@ router.post('/complete-auth', async (req, res) => {
     const userEmail = await getUserEmail(auth);
     res.json({ userEmail });
   } catch (err) {
-    console.error('Yetkilendirme tamamlanırken hata:', err.message, 'Modül ID:', moduleId);
     res.status(500).json({ error: 'Yetkilendirme başarısız' });
   }
 });
 
 router.get('/whatsapp-qr', async (req, res) => {
-  console.log('[DEBUG] /api/whatsapp-qr çağrıldı. isWhatsAppReady:', whatsapp.isWhatsAppReady, 'currentQrCode:', whatsapp.getCurrentQrCode() ? 'var' : 'yok', 'Modül ID:', moduleId);
   try {
     if (whatsapp.isWhatsAppReady) {
       return res.json({ qrCode: null, message: 'WhatsApp zaten bağlı.' });
@@ -91,28 +85,23 @@ router.get('/whatsapp-qr', async (req, res) => {
     }
     return res.json({ qrCode: null, message: 'QR kodu oluşturuluyor, lütfen birkaç saniye bekleyin.' });
   } catch (err) {
-    console.error('WhatsApp QR hatası:', err.message, 'Modül ID:', moduleId);
     res.status(500).json({ qrCode: null, message: 'QR kodu alınamadı: ' + err.message });
   }
 });
 
 router.post('/whatsapp-logout', async (req, res) => {
-  console.log('[DEBUG] /api/whatsapp-logout çağrıldı. Modül ID:', moduleId);
   try {
     await whatsapp.logout();
     if (fs.existsSync(path.join(__dirname, '../../.wwebjs_auth'))) {
       fs.rmdirSync(path.join(__dirname, '../../.wwebjs_auth'), { recursive: true });
-      console.log('[DEBUG] .wwebjs_auth klasörü silindi. Modül ID:', moduleId);
     }
     res.status(200).json({ message: 'Çıkış yapıldı, yeni QR kodu bekleniyor.' });
   } catch (err) {
-    console.error('WhatsApp çıkış hatası:', err.message, 'Modül ID:', moduleId);
     res.status(500).json({ error: 'Çıkış başarısız: ' + err.message });
   }
 });
 
 router.get('/whatsapp-groups', async (req, res) => {
-  console.log('[DEBUG] /api/whatsapp-groups çağrıldı. isWhatsAppReady:', whatsapp.isWhatsAppReady, 'Modül ID:', moduleId);
   if (!whatsapp.isWhatsAppReady) {
     return res.json({ groups: [], message: 'WhatsApp bağlı değil.' });
   }
@@ -126,7 +115,6 @@ router.get('/whatsapp-groups', async (req, res) => {
       }));
     res.json({ groups });
   } catch (err) {
-    console.error('WhatsApp grupları alınırken hata:', err.message, 'Modül ID:', moduleId);
     res.status(500).json({ error: 'Gruplar alınamadı: ' + err.message });
   }
 });

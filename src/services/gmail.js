@@ -9,8 +9,7 @@ const SCOPES = ['https://www.googleapis.com/auth/gmail.readonly'];
 const CREDENTIALS_PATH = path.join(__dirname, '../../config/credentials.json');
 const TOKEN_PATH = path.join(__dirname, '../../config/token.json');
 
-// Uygulama başlangıç zamanını sabitle
-const START_TIME = Math.floor(Date.now() / 1000); // Uygulama başlatıldığında zaman damgası
+const START_TIME = Math.floor(Date.now() / 1000);
 
 async function authorize() {
     try {
@@ -29,7 +28,6 @@ async function authorize() {
             throw new Error('Yeni token gerekli');
         }
     } catch (err) {
-        console.error('Kimlik doğrulama hatası:', err.message);
         throw err;
     }
 }
@@ -42,7 +40,6 @@ async function getNewAuthUrl() {
         const authUrl = oAuth2Client.generateAuthUrl({ access_type: 'offline', scope: SCOPES });
         return { authUrl, oAuth2Client };
     } catch (err) {
-        console.error('Yetkilendirme URL’si oluşturulurken hata:', err.message);
         throw err;
     }
 }
@@ -52,10 +49,8 @@ async function completeAuth(oAuth2Client, code) {
         const { tokens } = await oAuth2Client.getToken(code);
         oAuth2Client.setCredentials(tokens);
         fs.writeFileSync(TOKEN_PATH, JSON.stringify(tokens));
-        console.log('Token kaydedildi:', TOKEN_PATH);
         return oAuth2Client;
     } catch (err) {
-        console.error('Token alınırken hata:', err.message);
         throw err;
     }
 }
@@ -66,7 +61,6 @@ async function getUserEmail(auth) {
         const res = await gmail.users.getProfile({ userId: 'me' });
         return res.data.emailAddress;
     } catch (err) {
-        console.error('Kullanıcı e-posta adresi alınırken hata:', err.message);
         return null;
     }
 }
@@ -76,7 +70,6 @@ async function getEmails() {
     const gmail = google.gmail({ version: 'v1', auth });
 
     if (!config || !config.rules) {
-        console.error('Yapılandırma dosyası (config.json) yüklenemedi veya rules bulunamadı.');
         return;
     }
 
@@ -91,23 +84,18 @@ async function getEmails() {
     }).join(' OR ');
 
     const query = `${rulesQuery} after:${START_TIME}`;
-    console.log(`[DEBUG] Gmail arama sorgusu: ${query}`);
 
     try {
         const res = await gmail.users.messages.list({ userId: 'me', q: query });
         const messages = res.data.messages || [];
 
-        console.log(`[DEBUG] Bulunan e-posta sayısı: ${messages.length}`);
-
         if (messages.length === 0) {
-            console.log('Filtrelere uyan yeni e-posta bulunamadı.');
             return;
         }
 
         for (const message of messages) {
             try {
                 if (processedEmails.has(message.id)) {
-                    console.log(`[DEBUG] E-posta (ID: ${message.id}) zaten işlendi, atlanıyor.`);
                     continue;
                 }
 
@@ -123,11 +111,9 @@ async function getEmails() {
                 processedEmails.add(message.id);
                 fs.writeFileSync(PROCESSED_EMAILS_PATH, JSON.stringify([...processedEmails]));
             } catch (err) {
-                console.error(`E-posta (ID: ${message.id}) okuma hatası:`, err.message);
             }
         }
     } catch (err) {
-        console.error('E-posta listeleme hatası:', err.message);
     }
 }
 

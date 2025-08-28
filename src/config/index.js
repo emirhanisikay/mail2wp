@@ -10,18 +10,14 @@ let processedEmails = new Set();
 if (fs.existsSync(CONFIG_PATH)) {
   try {
     config = JSON.parse(fs.readFileSync(CONFIG_PATH));
-    console.log('config.json başarıyla yüklendi:', config);
   } catch (err) {
-    console.error('config.json yüklenirken hata:', err.message);
   }
 }
 
 if (fs.existsSync(PROCESSED_EMAILS_PATH)) {
   try {
     processedEmails = new Set(JSON.parse(fs.readFileSync(PROCESSED_EMAILS_PATH)));
-    console.log('processed_emails.json başarıyla yüklendi.');
   } catch (err) {
-    console.error('processed_emails.json yüklenirken hata:', err.message);
   }
 }
 
