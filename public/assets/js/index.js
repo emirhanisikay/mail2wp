@@ -29,6 +29,78 @@ function refreshRules() {
             document.getElementById('user-email').textContent = 'E-posta adresi alınamadı';
         });
 }
+
+function updateServiceStatus() {
+    fetch('/api/status')
+        .then(response => response.json())
+        .then(data => {
+            const statusDiv = document.getElementById('service-status');
+            if (data.isServiceActive) {
+                statusDiv.textContent = 'Aktif';
+                statusDiv.className = 'active';
+            } else {
+                statusDiv.textContent = 'Pasif';
+                statusDiv.className = 'inactive';
+            }
+
+            const startTimeSpan = document.getElementById('current-start-time');
+            const date = new Date(data.startTime * 1000);
+            startTimeSpan.textContent = date.toLocaleString();
+        });
+}
+
+function updateEmailQueue() {
+    fetch('/api/queue')
+        .then(response => response.json())
+        .then(data => {
+            const queueDiv = document.getElementById('email-queue');
+            queueDiv.innerHTML = '';
+            if (data.emailQueue.length === 0) {
+                queueDiv.innerHTML = '<p>Kuyrukta e-posta bulunmuyor.</p>';
+            } else {
+                data.emailQueue.forEach(email => {
+                    const queueItemDiv = document.createElement('div');
+                    queueItemDiv.className = 'queue-item';
+                    queueItemDiv.innerHTML = `
+                        <div class="queue-item-details">
+                            <strong>Gönderen:</strong> ${email.from}<br>
+                            <strong>Konu:</strong> ${email.subject}
+                        </div>
+                    `;
+                    queueDiv.appendChild(queueItemDiv);
+                });
+            }
+        });
+}
+
+function startService() {
+    fetch('/api/start', { method: 'POST' }).then(() => {
+        updateServiceStatus();
+        updateEmailQueue();
+    });
+}
+
+function stopService() {
+    fetch('/api/stop', { method: 'POST' }).then(() => {
+        updateServiceStatus();
+        updateEmailQueue();
+    });
+}
+
+function updateStartTime() {
+    const startTime = document.getElementById('start-time-picker').value;
+    if (!startTime) {
+        alert('Lütfen bir tarih ve saat seçin.');
+        return;
+    }
+    const timestamp = Math.floor(new Date(startTime).getTime() / 1000);
+    fetch('/api/start-time', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ startTime: timestamp })
+    }).then(updateServiceStatus);
+}
+
 function updateGroupId() {
     const groupId = document.getElementById('group-id').value;
     if (!groupId) {
@@ -209,5 +281,9 @@ function whatsappLogout() {
 window.onload = () => {
     refreshRules();
     checkWhatsAppStatus();
+    updateServiceStatus();
+    updateEmailQueue();
     setInterval(checkWhatsAppStatus, 3000);
+    setInterval(updateServiceStatus, 5000);
+    setInterval(updateEmailQueue, 5000);
 };

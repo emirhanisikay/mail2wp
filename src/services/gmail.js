@@ -4,12 +4,11 @@ const path = require('path');
 const whatsapp = require('./whatsapp');
 const { getEmailBody } = require('../utils/emailParser');
 const { config, processedEmails, PROCESSED_EMAILS_PATH } = require('../config');
+const sharedState = require('../sharedState');
 
 const SCOPES = ['https://www.googleapis.com/auth/gmail.readonly'];
 const CREDENTIALS_PATH = path.join(__dirname, '../../config/credentials.json');
 const TOKEN_PATH = path.join(__dirname, '../../config/token.json');
-
-const START_TIME = Math.floor(Date.now() / 1000);
 
 async function authorize() {
     try {
@@ -83,7 +82,7 @@ async function getEmails() {
         }
     }).join(' OR ');
 
-    const query = `${rulesQuery} after:${START_TIME}`;
+    const query = `${rulesQuery} after:${sharedState.startTime}`;
 
     try {
         const res = await gmail.users.messages.list({ userId: 'me', q: query });
@@ -99,6 +98,10 @@ async function getEmails() {
                     continue;
                 }
 
+                if (sharedState.emailQueue.some(item => item.messageId === message.id)) {
+                    continue;
+                }
+
                 const msg = await gmail.users.messages.get({ userId: 'me', id: message.id });
                 const headers = msg.data.payload.headers;
                 const subject = headers.find(header => header.name === 'Subject')?.value || '[Konu yok]';
@@ -106,14 +109,37 @@ async function getEmails() {
 
                 const body = getEmailBody(msg.data.payload);
 
-                await whatsapp.sendToWhatsApp({ from, subject, body, messageId: message.id });
+                const emailData = { from, subject, body, messageId: message.id };
 
-                processedEmails.add(message.id);
-                fs.writeFileSync(PROCESSED_EMAILS_PATH, JSON.stringify([...processedEmails]));
+                if (sharedState.isServiceActive) {
+                    await whatsapp.sendToWhatsApp(emailData);
+                    processedEmails.add(message.id);
+                    fs.writeFileSync(PROCESSED_EMAILS_PATH, JSON.stringify([...processedEmails]));
+                } else {
+                    sharedState.emailQueue.push(emailData);
+                }
             } catch (err) {
             }
         }
     } catch (err) {
+    }
+}
+
+async function processEmailQueue() {
+    const queue = [...sharedState.emailQueue];
+    sharedState.emailQueue = [];
+
+    for (const emailData of queue) {
+        try {
+            if (processedEmails.has(emailData.messageId)) {
+                continue;
+            }
+            await whatsapp.sendToWhatsApp(emailData);
+            processedEmails.add(emailData.messageId);
+            fs.writeFileSync(PROCESSED_EMAILS_PATH, JSON.stringify([...processedEmails]));
+        } catch (err) {
+            sharedState.emailQueue.push(emailData);
+        }
     }
 }
 
@@ -122,5 +148,6 @@ module.exports = {
     getNewAuthUrl,
     completeAuth,
     getUserEmail,
-    getEmails
+    getEmails,
+    processEmailQueue
 };

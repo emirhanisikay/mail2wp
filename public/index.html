@@ -3,15 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>E-posta Yönlendirme Paneli</title>
+    <title>WhatsApp Bildirim Paneli</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>E-posta Yönlendirme Paneli</h1>
+            <h1>WhatsApp Bildirim Paneli</h1>
             <div></div> <!-- Boş div for flex alignment -->
+        </div>
+        <div class="form-section">
+            <h2>Servis Durumu</h2><div id="service-status">Durum kontrol ediliyor...</div>
+            <div class="status-container">
+                <button id="start-button" onclick="startService()">Start</button>
+                <button id="stop-button" onclick="stopService()">Stop</button>
+            </div>
+        </div>
+        <div class="form-section">
+            <h2>Yönlendirme Başlangıç Zamanı</h2>
+            <p>Mevcut başlangıç zamanı: <span id="current-start-time"></span></p>
+            <input type="datetime-local" id="start-time-picker">
+            <button onclick="updateStartTime()">Güncelle</button>
         </div>
         <div class="form-section">
             <h2>E-posta Oturumu</h2>
@@ -64,6 +77,10 @@
                 <input type="text" id="new-subjects" placeholder="Örn: fatura, sipariş onayı">
             </div>
             <button onclick="addRule()">Kural Ekle</button>
+        </div>
+        <div class="form-section">
+            <h2>Kuyruk İzleme</h2>
+            <div id="email-queue"></div>
         </div>
     </div>
 

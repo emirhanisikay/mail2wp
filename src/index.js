@@ -3,7 +3,8 @@ const bodyParser = require('body-parser');
 const cron = require('node-cron');
 const path = require('path');
 const { router: apiRoutes } = require('./routes/api.js');
-const { getEmails } = require('./services/gmail.js');
+const { getEmails, processEmailQueue } = require('./services/gmail.js');
+const sharedState = require('./sharedState');
 
 // Express app
 const app = express();
@@ -22,6 +23,17 @@ async function main() {
   }
 }
 
+// E-posta kuyruğunu işle
+async function processQueue() {
+  if (sharedState.isServiceActive) {
+    try {
+      await processEmailQueue();
+    } catch (err) {
+      console.error('Hata:', err.message);
+    }
+  }
+}
+
 // Sunucuyu başlat
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
@@ -30,3 +42,6 @@ app.listen(PORT, () => {
 
 // Her 1 dakikada bir e-postaları kontrol et
 cron.schedule('* * * * *', main);
+
+// Her 30 saniyede bir e-posta kuyruğunu kontrol et ve işle
+cron.schedule('*/30 * * * * *', processQueue);

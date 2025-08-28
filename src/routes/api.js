@@ -6,9 +6,35 @@ const whatsapp = require('../services/whatsapp');
 const { authorize, getNewAuthUrl, completeAuth, getUserEmail } = require('../services/gmail');
 const { config, processedEmails, CONFIG_PATH, PROCESSED_EMAILS_PATH } = require('../config');
 const path = require('path');
-
+const sharedState = require('../sharedState');
 
 // API Endpoints
+router.get('/status', (req, res) => {
+    res.json({ isServiceActive: sharedState.isServiceActive, startTime: sharedState.startTime });
+});
+
+router.get('/queue', (req, res) => {
+    res.json({ emailQueue: sharedState.emailQueue });
+});
+
+router.post('/start', (req, res) => {
+    sharedState.isServiceActive = true;
+    res.status(200).send();
+});
+
+router.post('/stop', (req, res) => {
+    sharedState.isServiceActive = false;
+    res.status(200).send();
+});
+
+router.post('/start-time', (req, res) => {
+    const { startTime } = req.body;
+    if (startTime) {
+        sharedState.startTime = startTime;
+    }
+    res.status(200).send();
+});
+
 router.get('/config', async (req, res) => {
   try {
     const auth = await authorize();
