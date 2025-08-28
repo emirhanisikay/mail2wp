@@ -150,5 +150,6 @@ node_modules/
 
 # Geçici ve günlük dosyaları
 .wwebjs_auth/
+.wwebjs_cache/
 *.log
 >>>>>>> 88f6d9d (Initial commit: E-posta'dan WhatsApp'a mesaj yönlendirme uygulaması)
