@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Logs
 logs
 *.log
@@ -137,3 +138,17 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+=======
+# Hassas dosyalar
+config/credentials.json
+config/token.json
+config/config.json
+config/processed_emails.json
+
+# Node.js bağımlılıkları
+node_modules/
+
+# Geçici ve günlük dosyaları
+.wwebjs_auth/
+*.log
+>>>>>>> 88f6d9d (Initial commit: E-posta'dan WhatsApp'a mesaj yönlendirme uygulaması)

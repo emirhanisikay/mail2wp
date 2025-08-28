@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E-posta Yönlendirme Paneli</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>E-posta Yönlendirme Paneli</h1>
+            <div></div> <!-- Boş div for flex alignment -->
+        </div>
+        <div class="form-section">
+            <h2>E-posta Oturumu</h2>
+            <div id="user-email">E-posta adresi yükleniyor...</div>
+            <button onclick="reauthorize()">Yeniden Oturum Aç</button>
+            <div id="auth-section">
+                <p>1. Aşağıdaki bağlantıyı başka bir cihazda açın ve Google hesabınızla oturum açın:</p>
+                <a id="auth-url" href="#" target="_blank"></a>
+                <p>2. Görünen kodu kopyalayın ve aşağıya yapıştırın:</p>
+                <input type="text" id="auth-code" placeholder="Kodu buraya girin">
+                <button onclick="completeAuth()">Kodu Gönder</button>
+            </div>
+        </div>
+        <div class="form-section">
+            <h2>WhatsApp Bağlantısı</h2>
+            <div id="whatsapp-status">WhatsApp bağlantı durumu kontrol ediliyor...</div>
+            <div id="whatsapp-section">
+                <p>Telefonunuzda WhatsApp’ı açın (Ayarlar > Bağlı Cihazlar > Cihaz Bağla) ve aşağıdaki QR kodunu tarayın:</p>
+                <img id="whatsapp-qr" src="" alt="WhatsApp QR Kodu">
+            </div>
+            <div id="whatsapp-error" class="error-message"></div>
+            <button id="whatsapp-logout" style="display: none;" onclick="whatsappLogout()">Çıkış Yap</button>
+            <div id="group-select-section">
+                <label for="group-select">Grup Seç:</label>
+                <select id="group-select" onchange="selectGroup()">
+                    <option value="">Bir grup seçin...</option>
+                </select>
+            </div>
+        </div>
+        <div class="form-section">
+            <h2>WhatsApp Grup ID</h2>
+            <div>
+                <label for="group-id">Seçilen Grup ID:</label>
+                <input type="text" id="group-id" placeholder="Grup seçiniz veya manuel giriniz" readonly>
+                <button onclick="updateGroupId()">Güncelle</button>
+            </div>
+        </div>
+        <div class="form-section">
+            <h2>Yönlendirme Kuralları</h2>
+            <div id="rules"></div>
+        </div>
+        <div class="form-section">
+            <h2>Yeni Kural Ekle</h2>
+            <div>
+                <label for="new-sender">Gönderen E-posta Adresi:</label>
+                <input type="text" id="new-sender" placeholder="Örn: gonderen@example.com">
+            </div>
+            <div>
+                <label for="new-subjects">Başlık (virgülle ayrılmış, isteğe bağlı):</label>
+                <input type="text" id="new-subjects" placeholder="Örn: fatura, sipariş onayı">
+            </div>
+            <button onclick="addRule()">Kural Ekle</button>
+        </div>
+    </div>
+
+    <script src="assets/js/index.js"></script>
+</body>
+</html>
