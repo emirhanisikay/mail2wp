@@ -63,4 +63,5 @@ Mail2Wp, Gmail API'sini kullanarak e-postaları düzenli aralıklarla kontrol ed
 
 ## Lisans
 
-Bu proje ISC lisansı altındadır. Detaylar için `LICENSE` dosyasına bakınız.
+Bu proje MIT lisansı altındadır. Detaylar için `LICENSE` dosyasına bakınız.
+
