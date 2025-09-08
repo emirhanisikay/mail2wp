@@ -2,7 +2,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const cron = require('node-cron');
 const path = require('path');
-const { router: apiRoutes } = require('./routes/api.js');
+const apiRoutes = require('./routes/api.js'); // Düzeltildi: Doğrudan require
 const { getEmails, processEmailQueue } = require('./services/gmail.js');
 const sharedState = require('./sharedState');
 
@@ -10,6 +10,9 @@ const sharedState = require('./sharedState');
 const app = express();
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, '../public')));
+
+// apiRoutes'un doğru yüklendiğini kontrol et
+console.log('apiRoutes:', apiRoutes);
 
 // API rotalarını bağla
 app.use('/api', apiRoutes);

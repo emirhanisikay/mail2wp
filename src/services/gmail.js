@@ -27,6 +27,7 @@ async function authorize() {
             throw new Error('Yeni token gerekli');
         }
     } catch (err) {
+        console.error('authorize error:', err.message, err.stack);
         throw err;
     }
 }
@@ -37,29 +38,45 @@ async function getNewAuthUrl() {
         const { client_secret, client_id } = credentials.installed;
         const oAuth2Client = new google.auth.OAuth2(client_id, client_secret, 'urn:ietf:wg:oauth:2.0:oob');
         const authUrl = oAuth2Client.generateAuthUrl({ access_type: 'offline', scope: SCOPES });
-        return { authUrl, oAuth2Client };
+        console.log('Generated authUrl:', authUrl);
+        return authUrl;
     } catch (err) {
+        console.error('getNewAuthUrl error:', err.message, err.stack);
         throw err;
     }
 }
 
-async function completeAuth(oAuth2Client, code) {
+async function completeAuth(code) {
     try {
+        const credentials = JSON.parse(fs.readFileSync(CREDENTIALS_PATH));
+        const { client_secret, client_id } = credentials.installed;
+        const oAuth2Client = new google.auth.OAuth2(client_id, client_secret, 'urn:ietf:wg:oauth:2.0:oob');
+        console.log('Attempting to get token with code:', code);
         const { tokens } = await oAuth2Client.getToken(code);
+        console.log('Tokens received:', tokens);
         oAuth2Client.setCredentials(tokens);
         fs.writeFileSync(TOKEN_PATH, JSON.stringify(tokens));
+        console.log('Token saved to:', TOKEN_PATH);
         return oAuth2Client;
     } catch (err) {
+        console.error('completeAuth error:', err.message, err.stack);
         throw err;
     }
 }
 
 async function getUserEmail(auth) {
+    if (!auth) {
+        console.error('getUserEmail error: auth is undefined');
+        return null;
+    }
     const gmail = google.gmail({ version: 'v1', auth });
     try {
+        console.log('Fetching user profile with auth credentials:', auth.credentials);
         const res = await gmail.users.getProfile({ userId: 'me' });
+        console.log('getUserEmail response:', res.data);
         return res.data.emailAddress;
     } catch (err) {
+        console.error('getUserEmail error:', err.message, err.stack);
         return null;
     }
 }
@@ -92,6 +109,9 @@ async function getEmails() {
             return;
         }
 
+        // E-postaları en eskiden en yeniye doğru işlemek için diziyi ters çevir (FIFO)
+        messages.reverse();
+
         for (const message of messages) {
             try {
                 if (processedEmails.has(message.id)) {
@@ -106,10 +126,11 @@ async function getEmails() {
                 const headers = msg.data.payload.headers;
                 const subject = headers.find(header => header.name === 'Subject')?.value || '[Konu yok]';
                 const from = headers.find(header => header.name === 'From')?.value || '[Gönderici yok]';
+                const receivedAt = new Date(parseInt(msg.data.internalDate)).toLocaleString();
 
                 const body = getEmailBody(msg.data.payload);
 
-                const emailData = { from, subject, body, messageId: message.id };
+                const emailData = { from, subject, body, messageId: message.id, receivedAt };
 
                 if (sharedState.isServiceActive) {
                     await whatsapp.sendToWhatsApp(emailData);
@@ -119,9 +140,11 @@ async function getEmails() {
                     sharedState.emailQueue.push(emailData);
                 }
             } catch (err) {
+                console.error('getEmails error for message:', message.id, err.message);
             }
         }
     } catch (err) {
+        console.error('getEmails error:', err.message, err.stack);
     }
 }
 
@@ -138,6 +161,7 @@ async function processEmailQueue() {
             processedEmails.add(emailData.messageId);
             fs.writeFileSync(PROCESSED_EMAILS_PATH, JSON.stringify([...processedEmails]));
         } catch (err) {
+            console.error('processEmailQueue error:', err.message);
             sharedState.emailQueue.push(emailData);
         }
     }
