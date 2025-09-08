@@ -1,119 +1,64 @@
-# Mail2WP
+# Mail2Wp - E-posta'dan WhatsApp'a Mesaj Yönlendirici
 
-Mail2WP, Gmail hesabınızdan gelen e-posta mesajlarını belirli kurallara göre filtreleyerek WhatsApp gruplarına yönlendiren bir Node.js uygulamasıdır. Gmail API ile e-postaları okur ve `whatsapp-web.js` ile mesajları belirtilen WhatsApp gruplarına gönderir. Kullanıcı dostu bir web arayüzü üzerinden yapılandırma yapılabilir.
+Bu uygulama, belirtilen bir e-posta adresine gelen yeni e-postaları okur ve bu e-postaların içeriğini belirli WhatsApp gruplarına mesaj olarak gönderir.
+
+## Genel Bakış
+
+Mail2Wp, Gmail API'sini kullanarak e-postaları düzenli aralıklarla kontrol eder ve WhatsApp Web otomasyonu aracılığıyla istenen gruplara iletir. Servis, bir web arayüzü üzerinden yönetilebilir ve durumu hakkında bilgi alınabilir.
 
 ## Özellikler
 
-- **E-posta İzleme**: Gmail hesabınızdan gelen e-postaları gerçek zamanlı olarak izler.
-- **Filtreleme Kuralları**: Gönderen e-posta adresi ve konu bazlı filtreleme ile hangi mesajların yönlendirileceğini belirtebilirsiniz.
-- **WhatsApp Entegrasyonu**: WhatsApp gruplarına otomatik mesaj gönderimi.
-- **Web Arayüzü**: Modern ve kurumsal tasarıma sahip bir arayüz ile kolay yapılandırma.
-- **Responsive Tasarım**: Mobil cihazlarla uyumlu kullanıcı arayüzü.
+- **Periyodik E-posta Kontrolü:** Belirtilen Gmail hesabını düzenli olarak kontrol ederek yeni e-postaları alır.
+- **WhatsApp Entegrasyonu:** `whatsapp-web.js` kütüphanesi ile WhatsApp'a bağlanır ve mesaj gönderir.
+- **Web Arayüzü:** Servisin durumunu (aktif/pasif), WhatsApp bağlantı durumunu ve QR kodunu gösteren basit bir ön yüz.
+- **API Desteği:** Servisi yönetmek ve durumunu kontrol etmek için REST API uç noktaları.
+- **Kuyruk Mekanizması:** E-postaların güvenilir bir şekilde işlenmesi için bir kuyruk yapısı kullanır.
+- **Süreç Yönetimi:** `pm2` ile uygulamanın sürekli çalışması sağlanır.
 
-## Gereksinimler
+## Kurulum ve Başlatma
 
-- **Node.js**: v16 veya üstü
-- **Google Cloud Console**: Gmail API için OAuth 2.0 kimlik bilgileri (`credentials.json`)
-- **WhatsApp Hesabı**: Mesaj göndermek için bir WhatsApp hesabı
-- **Bağımlılıklar**:
-  - `express`
-  - `whatsapp-web.js`
-  - `qrcode`
-  - `qrcode-terminal`
-  - `googleapis`
-  - `node-cron`
+1.  **Bağımlılıkları Yükleyin:**
+    ```bash
+    npm install
+    ```
 
-## Kurulum
+2.  **Google Cloud Projesi ve Gmail API'si:**
+    - Google Cloud Platform'da bir proje oluşturun.
+    - Gmail API'sini etkinleştirin.
+    - OAuth 2.0 istemci kimliği ve sırlarını içeren `credentials.json` dosyasını projenin ana dizinine ekleyin.
+    - `token.json` dosyası, ilk yetkilendirmeden sonra otomatik olarak oluşturulacaktır.
 
-### 1. Depoyu Klonlayın
+3.  **Uygulamayı Başlatma:**
+    Uygulamayı geliştirme modunda çalıştırmak için:
+    ```bash
+    npm test
+    ```
+    Uygulamayı production ortamı için `pm2` ile başlatmak:
+    ```bash
+    pm2 start src/index.js --name mail2wp
+    ```
 
-```bash
-git clone https://github.com/emirhanisikay/mail2wp.git
-cd mail2wp
-```
+4.  **WhatsApp Bağlantısı:**
+    - Uygulama başlatıldığında, terminalde bir QR kodu görünecektir.
+    - WhatsApp mobil uygulamanızdan **Ayarlar > Bağlı Cihazlar > Cihaz Bağla** menüsünü kullanarak bu QR kodunu okutun.
+    - Bağlantı başarılı olduğunda, uygulama e-postaları yönlendirmeye hazır olacaktır.
 
-### 2. Bağımlılıkları Yükleyin
+## API Uç Noktaları
 
-```bash
-npm install
-```
+- `GET /api/status`: Servisin genel durumunu (WhatsApp bağlantısı, servis aktifliği vb.) döndürür.
+- `GET /api/qrcode`: WhatsApp için yeni bir QR kodu oluşturur ve döndürür.
+- `POST /api/start`: E-posta yönlendirme servisini başlatır.
+- `POST /api/stop`: E-posta yönlendirme servisini durdurur.
 
-### 3. Google API Kimlik Bilgilerini Yapılandırın
+## Kullanılan Teknolojiler
 
-- Google Cloud Console'da bir proje oluşturun ve Gmail API'yi etkinleştirin.
-- OAuth 2.0 kimlik bilgileri (`credentials.json`) dosyasını indirin ve `config/` dizini oluşturun ve buraya yerleştirin.
-- Gerekli kapsam: `https://www.googleapis.com/auth/gmail.readonly`
-
-### 4. Yapılandırma Dosyası Oluşturun
-
-`config/config.json` dosyasını oluşturun:
-
-```json
-{
-  "groupId": "",
-  "rules": []
-}
-```
-
-### 5. Uygulamayı Başlatın
-
-```bash
-npm start
-```
-
-### 6. Web Arayüzünü Kullanın
-
-- Tarayıcıda `http://localhost:3000` adresine gidin.
-- Google hesabınızla oturum açın.
-- WhatsApp QR kodunu tarayarak bağlanın (WhatsApp &gt; Ayarlar &gt; Bağlı Cihazlar &gt; Cihaz Bağla).
-- Yönlendirme kuralları ve WhatsApp grup ID'sini yapılandırın.
-
-## Kullanım
-
-1. **E-posta Oturumu**:
-   - Web arayüzünde "Yeniden Oturum Aç" butonuna tıklayın.
-   - Google hesabınızla oturum açın ve yetkilendirme kodunu girin.
-2. **WhatsApp Bağlantısı**:
-   - QR kodunu tarayarak WhatsApp hesabınızı bağlayın.
-   - Bağlantı başarılı olduğunda grup seçim menüsü görünür.
-3. **Yönlendirme Kuralları**:
-   - Gönderen e-posta adresi ve isteğe bağlı konu filtreleri ekleyin.
-   - Kuralları kaydedin; e-postalar otomatik olarak belirtilen WhatsApp grubuna yönlendirilir.
-
-## Proje Yapısı
-
-```
-mail2wp/
-├── public/
-│   └── index.html        # Web arayüzü
-├── src/
-│   ├── index.js          # Ana sunucu dosyası
-│   ├── routes/
-│   │   └── api.js        # API rotaları
-│   ├── services/
-│   │   ├── gmail.js      # Gmail API işlemleri
-│   │   └── whatsapp.js   # WhatsApp entegrasyonu
-├── config/               # Yapılandırma dosyaları (gitignore'da hariç tutulur)
-├── .gitignore            # Hariç tutulacak dosyalar
-├── README.md             # Proje dokümantasyonu
-├── LICENSE               # MIT Lisansı
-└── package.json          # Bağımlılıklar ve komutlar
-```
+- [Node.js](https://nodejs.org/)
+- [Express.js](https://expressjs.com/)
+- [googleapis (Gmail API)](https://github.com/googleapis/google-api-nodejs-client)
+- [whatsapp-web.js](https://github.com/pedroslopez/whatsapp-web.js)
+- [node-cron](https://github.com/node-cron/node-cron)
+- [PM2](https://pm2.keymetrics.io/)
 
 ## Lisans
 
-Bu proje MIT Lisansı altında lisanslanmıştır.
-
-## Katkıda Bulunma
-
-Katkılarınızı bekliyorum, Lütfen bir Pull Request açmadan önce GitHub Issues üzerinden mevcut sorunları kontrol edin.
-
-## İletişim
-
-Sorularınız veya geri bildirimleriniz için GitHub Issues üzerinden iletişime geçebilirsiniz.
-
-## Teşekkür
-
-- whatsapp-web.js için Pedro Lopez'e.
-
-Google APIs için Google ekibine.
+Bu proje MIT lisansı altındadır. Detaylar için `LICENSE` dosyasına bakınız.
