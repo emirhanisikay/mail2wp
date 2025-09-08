@@ -6,6 +6,8 @@ Bu uygulama, belirtilen bir e-posta adresine gelen yeni e-postaları okur ve bu 
 
 Mail2Wp, Gmail API'sini kullanarak e-postaları düzenli aralıklarla kontrol eder ve WhatsApp Web otomasyonu aracılığıyla istenen gruplara iletir. Servis, bir web arayüzü üzerinden yönetilebilir ve durumu hakkında bilgi alınabilir.
 
+![Uygulama Arayüzü](appui.jpg)
+
 ## Özellikler
 
 - **Periyodik E-posta Kontrolü:** Belirtilen Gmail hesabını düzenli olarak kontrol ederek yeni e-postaları alır.
@@ -61,4 +63,4 @@ Mail2Wp, Gmail API'sini kullanarak e-postaları düzenli aralıklarla kontrol ed
 
 ## Lisans
 
-Bu proje MIT lisansı altındadır. Detaylar için `LICENSE` dosyasına bakınız.
+Bu proje ISC lisansı altındadır. Detaylar için `LICENSE` dosyasına bakınız.
