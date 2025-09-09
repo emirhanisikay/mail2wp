@@ -1,153 +1,113 @@
-const WhatsApp = require('whatsapp-web.js');
+const { default: makeWASocket, DisconnectReason, useMultiFileAuthState } = require('@whiskeysockets/baileys');
 const qrcode = require('qrcode');
 const { config } = require('../config');
-
-const { Client, LocalAuth } = WhatsApp;
+const pino = require('pino');
 
 const state = {
   isWhatsAppReady: false,
   currentQrCode: null
 };
 
-let isInitializing = false;
+let sock = null;
 
-const client = new Client({
-  authStrategy: new LocalAuth(),
-  puppeteer: {
-    headless: true,
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-accelerated-2d-canvas',
-      '--no-first-run',
-      '--no-zygote',
-      '--disable-gpu',
-      '--disable-extensions',
-      '--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-    ]
-  }
-});
-
-client.on('qr', async (qr) => {
-  console.log('Yeni QR kodu üretildi:', new Date().toISOString());
+async function connectToWhatsApp() {
   try {
-    state.currentQrCode = await qrcode.toDataURL(qr);
-    state.isWhatsAppReady = false;
-    console.log('QR kodu web için kaydedildi.');
-    setTimeout(() => {
-      if (!state.isWhatsAppReady) {
-        console.log('QR kodu süresi doldu, yeniden başlatılıyor...');
-        if (!isInitializing) {
-          isInitializing = true;
-          client.initialize().catch(err => {
-            console.error('Yeniden başlatma hatası:', err);
-            isInitializing = false;
-            state.isWhatsAppReady = false;
-            state.currentQrCode = null;
-          });
+    const { state: authState, saveCreds } = await useMultiFileAuthState('.baileys_auth');
+    
+    sock = makeWASocket({
+      auth: authState,
+      logger: pino({ level: 'silent' })
+    });
+
+    sock.ev.on('connection.update', async (update) => {
+      const { connection, lastDisconnect, qr } = update;
+
+      if (qr) {
+        try {
+          state.currentQrCode = await qrcode.toDataURL(qr);
+          state.isWhatsAppReady = false;
+        } catch (err) {
+          state.currentQrCode = null;
+          console.error('QR kodu oluşturulamadı:', err.message, err.stack);
         }
       }
-    }, 60000); // 60 saniye
+
+      if (connection === 'open') {
+        state.isWhatsAppReady = true;
+        state.currentQrCode = null;
+      }
+
+      if (connection === 'close') {
+        const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
+        state.isWhatsAppReady = false;
+        state.currentQrCode = null;
+        sock = null;
+        if (shouldReconnect) {
+          setTimeout(() => connectToWhatsApp(), 5000);
+        } else {
+          setTimeout(() => connectToWhatsApp(), 5000);
+        }
+      }
+    });
+
+    sock.ev.on('creds.update', saveCreds);
   } catch (err) {
-    state.currentQrCode = null;
-    console.error('QR kodu oluşturulamadı:', err);
-  }
-});
-
-client.on('ready', async () => {
-  state.isWhatsAppReady = true;
-  state.currentQrCode = null;
-  console.log('WhatsApp istemcisi hazır:', new Date().toISOString());
-  console.log('İstemci durumu:', client.info || 'Durum bilgisi alınamadı');
-});
-
-client.on('disconnected', (reason) => {
-  state.isWhatsAppReady = false;
-  state.currentQrCode = null;
-  console.log('WhatsApp bağlantısı kesildi:', reason, new Date().toISOString());
-  if (!isInitializing) {
-    isInitializing = true;
-    client.initialize().catch(err => {
-      console.error('WhatsApp yeniden başlatılamadı:', err);
-      isInitializing = false;
-      state.isWhatsAppReady = false;
-      state.currentQrCode = null;
-    });
-  }
-});
-
-client.on('auth_failure', (msg) => {
-  state.isWhatsAppReady = false;
-  state.currentQrCode = null;
-  console.log('WhatsApp kimlik doğrulama hatası:', msg, new Date().toISOString());
-  if (!isInitializing) {
-    isInitializing = true;
-    client.initialize().catch(err => {
-      console.error('WhatsApp yeniden başlatılamadı:', err);
-      isInitializing = false;
-      state.isWhatsAppReady = false;
-      state.currentQrCode = null;
-    });
-  }
-});
-
-client.on('loading_screen', (percent, message) => {
-  console.log('WhatsApp yükleniyor:', percent, message, new Date().toISOString());
-});
-
-if (!isInitializing) {
-  isInitializing = true;
-  client.initialize().catch(err => {
-    console.error('WhatsApp başlatılamadı:', err);
-    isInitializing = false;
+    console.error('WhatsApp başlatılamadı:', err.message, err.stack);
     state.isWhatsAppReady = false;
     state.currentQrCode = null;
-  });
+    sock = null;
+    setTimeout(() => connectToWhatsApp(), 5000);
+  }
 }
+
+connectToWhatsApp();
 
 async function logout() {
   try {
-    await client.logout();
+    if (sock) {
+      await sock.logout();
+    }
     state.isWhatsAppReady = false;
     state.currentQrCode = null;
-    console.log('WhatsApp oturumu sıfırlandı:', new Date().toISOString());
-    if (!isInitializing) {
-      isInitializing = true;
-      await client.initialize();
-      isInitializing = false;
-    }
+    sock = null;
+    await connectToWhatsApp();
     return { success: true, message: 'Çıkış yapıldı, yeni QR kodu bekleniyor.' };
   } catch (err) {
     state.isWhatsAppReady = false;
     state.currentQrCode = null;
-    console.error('Çıkış hatası:', err);
+    sock = null;
+    console.error('Çıkış hatası:', err.message, err.stack);
     throw err;
   }
 }
 
 const singleton = {
-  client,
+  get client() {
+    return sock;
+  },
   get isWhatsAppReady() {
     return state.isWhatsAppReady;
   },
   get phoneNumber() {
-    return state.isWhatsAppReady && client.info && client.info.wid ? client.info.wid._serialized : null;
+    if (!state.isWhatsAppReady || !sock?.user?.id) {
+      return null;
+    }
+    const phoneNumber = sock.user.id.split(':')[0];
+    return phoneNumber;
   },
   sendToWhatsApp: async function ({ from, subject, body, messageId }) {
     const groupId = config.groupId;
     const message = `*${subject}* \n\n ${body}`;
     try {
-      if (!state.isWhatsAppReady) {
+      if (!state.isWhatsAppReady || !sock) {
         throw new Error('WhatsApp istemcisi hazır değil. Lütfen QR kodunu tarayın.');
       }
-      if (!groupId) {
-        throw new Error('WhatsApp grup ID’si ayarlanmamış.');
+      if (!groupId || !groupId.includes('@g.us')) {
+        throw new Error('Geçersiz WhatsApp grup ID’si: ' + groupId);
       }
-      await client.sendMessage(groupId, message);
-      console.log('Mesaj gönderildi:', { from, subject, messageId });
+      await sock.sendMessage(groupId, { text: message });
     } catch (err) {
-      console.error('Mesaj gönderilemedi:', err);
+      console.error('Mesaj gönderilemedi:', { groupId, from, subject, messageId, error: err.message, stack: err.stack });
       throw err;
     }
   },
@@ -155,7 +115,7 @@ const singleton = {
     return {
       qrCode: state.currentQrCode,
       message: state.isWhatsAppReady ? 'WhatsApp zaten bağlı.' : (state.currentQrCode ? null : 'QR kodu oluşturuluyor, lütfen birkaç saniye bekleyin.'),
-      phoneNumber: state.isWhatsAppReady && client.info && client.info.wid ? client.info.wid._serialized : null
+      phoneNumber: this.phoneNumber
     };
   },
   logout

@@ -2,7 +2,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const cron = require('node-cron');
 const path = require('path');
-const apiRoutes = require('./routes/api.js'); // Düzeltildi: Doğrudan require
+const apiRoutes = require('./routes/api.js');
 const { getEmails, processEmailQueue } = require('./services/gmail.js');
 const sharedState = require('./sharedState');
 
@@ -10,9 +10,6 @@ const sharedState = require('./sharedState');
 const app = express();
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, '../public')));
-
-// apiRoutes'un doğru yüklendiğini kontrol et
-console.log('apiRoutes:', apiRoutes);
 
 // API rotalarını bağla
 app.use('/api', apiRoutes);
@@ -32,7 +29,7 @@ async function processQueue() {
     try {
       await processEmailQueue();
     } catch (err) {
-      console.error('Hata:', err.message);
+      console.error('Kuyruk işlenirken hata:', err.message, err.stack);
     }
   }
 }
@@ -44,7 +41,7 @@ app.listen(PORT, () => {
 });
 
 // Her 1 dakikada bir e-postaları kontrol et
-cron.schedule('* * * * *', main);
+cron.schedule('*/30 * * * * *', main);
 
-// Her 30 saniyede bir e-posta kuyruğunu kontrol et ve işle
-cron.schedule('*/30 * * * * *', processQueue);
+// Her 10 saniyede bir e-posta kuyruğunu kontrol et ve işle
+cron.schedule('*/35 * * * * *', processQueue);

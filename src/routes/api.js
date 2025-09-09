@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const whatsapp = require('../services/whatsapp');
 const { authorize, getNewAuthUrl, completeAuth, getUserEmail } = require('../services/gmail');
-const { config, saveConfig } = require('../config');
+const { config, processedEmails, saveConfig } = require('../config');
 const sharedState = require('../sharedState');
 const { getEmails, processEmailQueue } = require('../services/gmail');
 
@@ -37,8 +37,8 @@ router.post('/start-time', (req, res) => {
 
 router.get('/config', async (req, res) => {
     try {
-        const auth = await authorize(); // Get oAuth2Client from authorize
-        const userEmail = await getUserEmail(auth); // Pass auth to getUserEmail
+        const auth = await authorize();
+        const userEmail = await getUserEmail(auth);
         res.json({
             groupId: config.groupId,
             rules: config.rules,
@@ -66,6 +66,9 @@ router.post('/group-id', (req, res) => {
 
 router.post('/rules', (req, res) => {
     const { rule } = req.body;
+    if (!rule || !rule.sender) {
+        return res.status(400).json({ error: 'Gönderen bilgisi gerekli' });
+    }
     config.rules.push(rule);
     saveConfig();
     res.json({ success: true });
@@ -96,8 +99,6 @@ router.get('/reauthorize', async (req, res) => {
 router.post('/complete-auth', async (req, res) => {
     const { code } = req.body;
     const sanitizedCode = code ? code.trim() : null;
-    console.log('Received authorization code:', sanitizedCode);
-    console.log('Raw code length:', code ? code.length : 0, 'Sanitized code length:', sanitizedCode ? sanitizedCode.length : 0);
     try {
         if (!sanitizedCode) {
             throw new Error('Yetkilendirme kodu sağlanmadı.');
@@ -116,7 +117,6 @@ router.post('/complete-auth', async (req, res) => {
 
 router.get('/oauth2callback', async (req, res) => {
     const { code } = req.query;
-    console.log('OAuth callback received code:', code);
     try {
         if (!code) {
             throw new Error('Yetkilendirme kodu sağlanmadı.');
@@ -150,20 +150,39 @@ router.post('/whatsapp-logout', async (req, res) => {
 
 router.get('/whatsapp-groups', async (req, res) => {
     try {
-        if (!whatsapp.isWhatsAppReady) {
+        if (!whatsapp.isWhatsAppReady || !whatsapp.client) {
             return res.json({ groups: [] });
         }
-        const chats = await whatsapp.client.getChats();
-        const groups = chats
-            .filter(chat => chat.isGroup)
-            .map(chat => ({
-                id: chat.id._serialized,
-                name: chat.name
+        try {
+            const chats = await whatsapp.client.groupFetchAllParticipating();
+            const groups = Object.entries(chats).map(([id, group]) => ({
+                id: id,
+                name: group.subject
             }));
-        res.json({ groups });
+            res.json({ groups });
+        } catch (err) {
+            if (err.message.includes('rate-overlimit')) {
+                console.warn('Rate limit hatası, 60 saniye sonra tekrar denenecek.');
+                setTimeout(async () => {
+                    try {
+                        const chats = await whatsapp.client.groupFetchAllParticipating();
+                        const groups = Object.entries(chats).map(([id, group]) => ({
+                            id: id,
+                            name: group.subject
+                        }));
+                        res.json({ groups });
+                    } catch (retryErr) {
+                        console.error('Gruplar alınırken tekrar deneme hatası:', retryErr.message, retryErr.stack);
+                        res.status(500).json({ error: 'Gruplar alınamadı', details: retryErr.message });
+                    }
+                }, 60000); // 60 saniye bekle
+            } else {
+                throw err;
+            }
+        }
     } catch (err) {
-        console.error('Gruplar alınırken hata:', err.message);
-        res.status(500).json({ error: 'Gruplar alınamadı' });
+        console.error('Gruplar alınırken hata:', err.message, err.stack);
+        res.status(500).json({ error: 'Gruplar alınamadı', details: err.message });
     }
 });
 

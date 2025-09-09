@@ -1,3 +1,12 @@
+function showError(message) {
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'error-message';
+    errorDiv.textContent = message;
+    errorDiv.style.display = 'block';
+    document.querySelector('.container').prepend(errorDiv);
+    setTimeout(() => errorDiv.remove(), 5000);
+}
+
 function refreshRules() {
     fetch('/api/config')
         .then(response => {
@@ -28,6 +37,7 @@ function refreshRules() {
             console.error('Config alınırken hata:', err);
             document.getElementById('user-email').textContent = 'Gmail yetkilendirmesi alınamadı, lütfen yeniden yetkilendirin.';
             document.getElementById('auth-section').style.display = 'block';
+            showError('Config yüklenemedi: ' + err.message);
         });
 }
 
@@ -47,6 +57,10 @@ function updateServiceStatus() {
             const startTimeSpan = document.getElementById('current-start-time');
             const date = new Date(data.startTime * 1000);
             startTimeSpan.textContent = date.toLocaleString();
+        })
+        .catch(err => {
+            console.error('Servis durumu alınırken hata:', err);
+            showError('Servis durumu alınamadı: ' + err.message);
         });
 }
 
@@ -74,7 +88,14 @@ function updateEmailQueue() {
                     `;
                     queueDiv.appendChild(queueItemDiv);
                 });
+                if (data.emailQueue.length > 0) {
+                    showError('Kuyrukta ' + data.emailQueue.length + ' e-posta bekliyor. WhatsApp bağlantısını veya grup ID’sini kontrol edin.');
+                }
             }
+        })
+        .catch(err => {
+            console.error('Kuyruk alınırken hata:', err);
+            showError('E-posta kuyruğu alınamadı: ' + err.message);
         });
 }
 
@@ -92,22 +113,40 @@ function removeFromQueue(emailId) {
         })
         .catch(err => {
             console.error('E-posta silinirken hata:', err);
-            alert('E-posta kuyruktan silinirken bir hata oluştu.');
+            showError('E-posta kuyruktan silinirken hata: ' + err.message);
         });
 }
 
 function startService() {
-    fetch('/api/start', { method: 'POST' }).then(() => {
-        updateServiceStatus();
-        updateEmailQueue();
-    });
+    fetch('/api/start', { method: 'POST' })
+        .then(response => {
+            if (!response.ok) throw new Error('Servis başlatılamadı');
+            return response.json();
+        })
+        .then(() => {
+            updateServiceStatus();
+            updateEmailQueue();
+        })
+        .catch(err => {
+            console.error('Servis başlatılırken hata:', err);
+            showError('Servis başlatılamadı: ' + err.message);
+        });
 }
 
 function stopService() {
-    fetch('/api/stop', { method: 'POST' }).then(() => {
-        updateServiceStatus();
-        updateEmailQueue();
-    });
+    fetch('/api/stop', { method: 'POST' })
+        .then(response => {
+            if (!response.ok) throw new Error('Servis durdurulamadı');
+            return response.json();
+        })
+        .then(() => {
+            updateServiceStatus();
+            updateEmailQueue();
+        })
+        .catch(err => {
+            console.error('Servis durdurulurken hata:', err);
+            showError('Servis durdurulamadı: ' + err.message);
+        });
 }
 
 function clearQueue() {
@@ -124,53 +163,69 @@ function clearQueue() {
         })
         .catch(err => {
             console.error('Kuyruk temizlenirken hata:', err);
-            alert('Kuyruk temizlenirken bir hata oluştu.');
+            showError('Kuyruk temizlenirken hata: ' + err.message);
         });
 }
 
 function updateStartTime() {
     const startTime = document.getElementById('start-time-picker').value;
     if (!startTime) {
-        alert('Lütfen bir tarih ve saat seçin.');
+        showError('Lütfen bir tarih ve saat seçin.');
         return;
     }
     const timestamp = Math.floor(new Date(startTime).getTime() / 1000);
     fetch('/api/start-time', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ startTime: timestamp })
-    }).then(updateServiceStatus);
+        body: JSON.stringify({ startTime })
+    }).then(updateServiceStatus)
+      .catch(err => showError('Başlangıç zamanı güncellenemedi: ' + err.message));
 }
 
 function updateGroupId() {
     const groupId = document.getElementById('group-id').value;
     if (!groupId) {
-        alert('Lütfen bir grup seçin veya grup ID’sini girin.');
+        showError('Lütfen bir grup seçin veya grup ID’sini girin.');
         return;
     }
     fetch('/api/group-id', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ groupId })
-    }).then(refreshRules);
+    }).then(refreshRules)
+      .catch(err => showError('Grup ID güncellenemedi: ' + err.message));
 }
 
 function addRule() {
     const sender = document.getElementById('new-sender').value;
     const subjects = document.getElementById('new-subjects').value.split(',').map(s => s.trim()).filter(s => s);
+    if (!sender) {
+        showError('Gönderen e-posta adresi gerekli.');
+        return;
+    }
     fetch('/api/rules', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rule: { sender, subjects: subjects.length > 0 ? subjects : undefined } })
+    }).then(response => {
+        if (!response.ok) {
+            throw new Error('Kural eklenemedi: Sunucu hatası');
+        }
+        return response.json();
     }).then(() => {
         document.getElementById('new-sender').value = '';
         document.getElementById('new-subjects').value = '';
         refreshRules();
+    }).catch(err => {
+        console.error('Kural eklenirken hata:', err);
+        showError('Kural eklenemedi: ' + err.message);
     });
 }
 
 function deleteRule(index) {
-    fetch(`/api/rules/${index}`, { method: 'DELETE' }).then(refreshRules);
+    fetch(`/api/rules/${index}`, { method: 'DELETE' })
+        .then(refreshRules)
+        .catch(err => showError('Kural silinemedi: ' + err.message));
 }
 
 function fetchConfig() {
@@ -183,7 +238,6 @@ function fetchConfig() {
             } else {
                 document.getElementById('user-email').textContent = 'Yetkilendirme gerekli';
                 document.getElementById('auth-section').style.display = 'block';
-                // Only call reauthorize if not in the process of completing auth
                 if (data.needsAuth && !window.location.search.includes('userEmail') && !document.getElementById('auth-code').value) {
                     reauthorize();
                 }
@@ -197,6 +251,7 @@ function fetchConfig() {
             console.error('Config yüklenirken hata:', err);
             document.getElementById('user-email').textContent = 'Config yüklenemedi';
             document.getElementById('auth-section').style.display = 'block';
+            showError('Config yüklenemedi: ' + err.message);
         });
 }
 
@@ -219,13 +274,14 @@ function reauthorize() {
             console.error('Yetkilendirme hatası:', err);
             document.getElementById('user-email').textContent = 'Yetkilendirme başarısız: ' + err.message;
             document.getElementById('auth-section').style.display = 'block';
+            showError('Yetkilendirme başarısız: ' + err.message);
         });
 }
 
 function completeAuth() {
     const code = document.getElementById('auth-code').value.trim();
     if (!code) {
-        alert('Lütfen kodu girin.');
+        showError('Lütfen kodu girin.');
         return;
     }
     console.log('Sending authorization code:', code);
@@ -245,7 +301,6 @@ function completeAuth() {
             if (data.userEmail) {
                 document.getElementById('user-email').textContent = data.userEmail;
                 document.getElementById('auth-section').style.display = 'none';
-                // Delay refreshRules to avoid immediate reauthorize
                 setTimeout(refreshRules, 1000);
             } else {
                 throw new Error(data.details || 'E-posta adresi alınamadı');
@@ -255,6 +310,7 @@ function completeAuth() {
             console.error('Yetkilendirme tamamlanırken hata:', err);
             document.getElementById('user-email').textContent = 'Yetkilendirme başarısız: ' + err.message;
             document.getElementById('auth-section').style.display = 'block';
+            showError('Yetkilendirme başarısız: ' + err.message);
         });
 }
 
@@ -282,12 +338,16 @@ function checkWhatsAppStatus() {
                 whatsappSection.style.display = 'none';
                 whatsappLogout.style.display = 'block';
                 groupSelectSection.style.display = 'block';
-                const cleanPhoneNumber = data.phoneNumber ? data.phoneNumber.replace('@c.us', '') : null;
+                const cleanPhoneNumber = data.phoneNumber ? data.phoneNumber.split(':')[0] : null;
                 whatsappStatus.textContent = cleanPhoneNumber 
                     ? `${cleanPhoneNumber} telefon numaralı WhatsApp hattı bağlı durumda.` 
                     : 'WhatsApp bağlı, ancak telefon numarası alınamadı.';
                 whatsappError.style.display = 'none';
-                loadGroups();
+                // Grupları yalnızca ilk yüklemede veya bağlantı değiştiğinde al
+                if (!window.groupsLoaded) {
+                    loadGroups();
+                    window.groupsLoaded = true;
+                }
             } else {
                 whatsappSection.style.display = 'block';
                 whatsappQr.src = '';
@@ -296,6 +356,7 @@ function checkWhatsAppStatus() {
                 whatsappStatus.textContent = data.message || 'WhatsApp bağlantı durumu kontrol ediliyor...';
                 whatsappError.style.display = 'block';
                 whatsappError.textContent = data.message || 'Bağlantı bekleniyor, lütfen birkaç saniye bekleyin.';
+                showError('WhatsApp bağlantısı sağlanamadı. Lütfen QR kodunu yeniden tarayın.');
             }
         })
         .catch(err => {
@@ -304,6 +365,7 @@ function checkWhatsAppStatus() {
             document.getElementById('whatsapp-error').style.display = 'block';
             document.getElementById('whatsapp-error').textContent = 'Bağlantı hatası: ' + err.message;
             document.getElementById('group-select-section').style.display = 'none';
+            showError('WhatsApp bağlantı durumu alınamadı: ' + err.message);
         });
 }
 
@@ -326,6 +388,7 @@ function loadGroups() {
                 }
             } else {
                 groupSelect.innerHTML = '<option value="">Grup bulunamadı</option>';
+                showError('WhatsApp grupları yüklenemedi. Bağlantıyı kontrol edin.');
             }
         })
         .catch(err => {
@@ -333,6 +396,7 @@ function loadGroups() {
             document.getElementById('group-select').innerHTML = '<option value="">Grup yüklenemedi</option>';
             document.getElementById('whatsapp-error').style.display = 'block';
             document.getElementById('whatsapp-error').textContent = 'Gruplar yüklenemedi: ' + err.message;
+            showError('Gruplar yüklenemedi: ' + err.message);
         });
 }
 
@@ -360,6 +424,7 @@ function whatsappLogout() {
             document.getElementById('whatsapp-logout').style.display = 'none';
             document.getElementById('whatsapp-status').textContent = 'Yeni QR kodu bekleniyor...';
             document.getElementById('whatsapp-error').style.display = 'none';
+            window.groupsLoaded = false; // Çıkış yapıldığında grupları yeniden yükle
             setTimeout(checkWhatsAppStatus, 1000);
         })
         .catch(err => {
@@ -368,6 +433,7 @@ function whatsappLogout() {
             document.getElementById('whatsapp-error').style.display = 'block';
             document.getElementById('whatsapp-error').textContent = 'Çıkış hatası: ' + err.message;
             document.getElementById('group-select-section').style.display = 'none';
+            showError('WhatsApp çıkış hatası: ' + err.message);
         });
 }
 
@@ -376,9 +442,8 @@ window.onload = () => {
     checkWhatsAppStatus();
     updateServiceStatus();
     updateEmailQueue();
-    setInterval(checkWhatsAppStatus, 500);
-    setInterval(updateServiceStatus, 5000);
-    setInterval(updateEmailQueue, 5000);
+    setInterval(updateServiceStatus, 15000); // 15 saniye
+    setInterval(updateEmailQueue, 15000); // 15 saniye
 
     // Handle OAuth callback query parameter
     const urlParams = new URLSearchParams(window.location.search);

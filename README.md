@@ -1,67 +1,59 @@
-# Mail2Wp - E-posta'dan WhatsApp'a Mesaj Yönlendirici
+# Mail2Wp - Gelişmiş E-posta'dan WhatsApp'a Yönlendirici
 
-Bu uygulama, belirtilen bir e-posta adresine gelen yeni e-postaları okur ve bu e-postaların içeriğini belirli WhatsApp gruplarına mesaj olarak gönderir.
+Mail2Wp, belirlediğiniz kurallara göre Gmail hesabınıza gelen e-postaları okur ve bu e-postaların içeriğini bir web paneli üzerinden seçtiğiniz WhatsApp grubuna anında bildirim olarak gönderir.
+
+[![Node.js](https://img.shields.io/badge/Node.js-18.x-green.svg)](https://nodejs.org/) [![Express.js](https://img.shields.io/badge/Express.js-4.x-blue.svg)](https://expressjs.com/) [![PM2](https://img.shields.io/badge/PM2-stable-brightgreen.svg)](https://pm2.keymetrics.io/) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Genel Bakış
 
-Mail2Wp, Gmail API'sini kullanarak e-postaları düzenli aralıklarla kontrol eder ve WhatsApp Web otomasyonu aracılığıyla istenen gruplara iletir. Servis, bir web arayüzü üzerinden yönetilebilir ve durumu hakkında bilgi alınabilir.
+Bu uygulama, Gmail API ve Baileys (WhatsApp Web API) kütüphanelerini kullanarak güçlü bir otomasyon sağlar. Tüm yönetim işlemleri, kullanıcı dostu bir web arayüzü üzerinden kolayca yapılabilir. Servisi başlatıp durdurabilir, kurallar ekleyip silebilir ve WhatsApp bağlantınızı yönetebilirsiniz.
 
 ![Uygulama Arayüzü](appui.jpg)
 
 ## Özellikler
 
-- **Periyodik E-posta Kontrolü:** Belirtilen Gmail hesabını düzenli olarak kontrol ederek yeni e-postaları alır.
-- **WhatsApp Entegrasyonu:** `whatsapp-web.js` kütüphanesi ile WhatsApp'a bağlanır ve mesaj gönderir.
-- **Web Arayüzü:** Servisin durumunu (aktif/pasif), WhatsApp bağlantı durumunu ve QR kodunu gösteren basit bir ön yüz.
-- **API Desteği:** Servisi yönetmek ve durumunu kontrol etmek için REST API uç noktaları.
-- **Kuyruk Mekanizması:** E-postaların güvenilir bir şekilde işlenmesi için bir kuyruk yapısı kullanır.
-- **Süreç Yönetimi:** `pm2` ile uygulamanın sürekli çalışması sağlanır.
-
-## Kurulum ve Başlatma
-
-1.  **Bağımlılıkları Yükleyin:**
-    ```bash
-    npm install
-    ```
-
-2.  **Google Cloud Projesi ve Gmail API'si:**
-    - Google Cloud Platform'da bir proje oluşturun.
-    - Gmail API'sini etkinleştirin.
-    - OAuth 2.0 istemci kimliği ve sırlarını içeren `credentials.json` dosyasını projenin ana dizinine ekleyin.
-    - `token.json` dosyası, ilk yetkilendirmeden sonra otomatik olarak oluşturulacaktır.
-
-3.  **Uygulamayı Başlatma:**
-    Uygulamayı geliştirme modunda çalıştırmak için:
-    ```bash
-    npm test
-    ```
-    Uygulamayı production ortamı için `pm2` ile başlatmak:
-    ```bash
-    pm2 start src/index.js --name mail2wp
-    ```
-
-4.  **WhatsApp Bağlantısı:**
-    - Uygulama başlatıldığında, terminalde bir QR kodu görünecektir.
-    - WhatsApp mobil uygulamanızdan **Ayarlar > Bağlı Cihazlar > Cihaz Bağla** menüsünü kullanarak bu QR kodunu okutun.
-    - Bağlantı başarılı olduğunda, uygulama e-postaları yönlendirmeye hazır olacaktır.
-
-## API Uç Noktaları
-
-- `GET /api/status`: Servisin genel durumunu (WhatsApp bağlantısı, servis aktifliği vb.) döndürür.
-- `GET /api/qrcode`: WhatsApp için yeni bir QR kodu oluşturur ve döndürür.
-- `POST /api/start`: E-posta yönlendirme servisini başlatır.
-- `POST /api/stop`: E-posta yönlendirme servisini durdurur.
+- **Web Tabanlı Kontrol Paneli:** Tüm ayarları ve servis durumunu yönetmek için modern ve kullanıcı dostu bir arayüz.
+- **Detaylı Kural Yönetimi:** E-postaları sadece göndericiye göre değil, aynı zamanda e-posta konusundaki belirli anahtar kelimelere göre de filtreleme.
+- **Dinamik Grup Seçimi:** Bağlı WhatsApp hesabındaki tüm gruplar listelenir ve hedef grup arayüzden seçilebilir.
+- **Güvenli Yetkilendirme:** Google için OAuth 2.0 ve WhatsApp için QR kod ile güvenli bağlantı.
+- **Durum İzleme:** Servisin (Aktif/Pasif), Gmail ve WhatsApp bağlantı durumlarının anlık olarak panelden takibi.
+- **Akıllı Kuyruk Mekanizması:** WhatsApp bağlantısı koptuğunda veya mesaj gönderimi başarısız olduğunda e-postalar bir kuyruğa alınır ve bağlantı kurulduğunda otomatik olarak gönderilir. Kuyruk panelden izlenebilir.
+- **Süreç Yönetimi:** `pm2` desteği ile uygulamanın sunucuda sürekli ve kararlı bir şekilde çalışması sağlanır.
+- **Zamanlanmış Başlatma:** E-posta yönlendirmesinin gelecekte belirli bir tarih ve saatte başlaması için zamanlama özelliği.
 
 ## Kullanılan Teknolojiler
 
 - [Node.js](https://nodejs.org/)
 - [Express.js](https://expressjs.com/)
 - [googleapis (Gmail API)](https://github.com/googleapis/google-api-nodejs-client)
-- [whatsapp-web.js](https://github.com/pedroslopez/whatsapp-web.js)
+- [@whiskeysockets/baileys (WhatsApp API)](https://github.com/WhiskeySockets/Baileys)
 - [node-cron](https://github.com/node-cron/node-cron)
 - [PM2](https://pm2.keymetrics.io/)
 
-## Lisans
+## Kurulum
 
-Bu proje MIT lisansı altındadır. Detaylar için `LICENSE` dosyasına bakınız.
+1.  **Projeyi Klonlayın:**
+    ```bash
+    git clone <proje-linkiniz>
+    cd <proje-klasoru>
+    ```
 
+2.  **Bağımlılıkları Yükleyin:**
+    ```bash
+    npm install
+    ```
+
+3.  **Google Cloud Projesi ve Gmail API'si:**
+    - Google Cloud Platform'da bir proje oluşturun ve **Gmail API**'sini etkinleştirin.
+    - **OAuth 2.0 istemci kimliği** oluşturun ve yetkilendirme bilgilerini içeren `credentials.json` dosyasını indirin.
+    - İndirdiğiniz `credentials.json` dosyasını projenin içindeki `/config` klasörüne taşıyın.
+    - `config/token.json` ve `config/config.json` dosyaları ilk çalıştırmadan sonra otomatik olarak oluşturulacaktır.
+
+## Uygulamayı Başlatma
+
+- **Geliştirme Ortamı İçin:**
+  Uygulamayı doğrudan çalıştırmak için (package.json dosyanıza bir "start" script'i eklemeniz önerilir):
+  ```bash
+  npm start
+  # veya
+  node src/index.js

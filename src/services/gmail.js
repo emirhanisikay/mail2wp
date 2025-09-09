@@ -38,7 +38,6 @@ async function getNewAuthUrl() {
         const { client_secret, client_id } = credentials.installed;
         const oAuth2Client = new google.auth.OAuth2(client_id, client_secret, 'urn:ietf:wg:oauth:2.0:oob');
         const authUrl = oAuth2Client.generateAuthUrl({ access_type: 'offline', scope: SCOPES });
-        console.log('Generated authUrl:', authUrl);
         return authUrl;
     } catch (err) {
         console.error('getNewAuthUrl error:', err.message, err.stack);
@@ -51,12 +50,9 @@ async function completeAuth(code) {
         const credentials = JSON.parse(fs.readFileSync(CREDENTIALS_PATH));
         const { client_secret, client_id } = credentials.installed;
         const oAuth2Client = new google.auth.OAuth2(client_id, client_secret, 'urn:ietf:wg:oauth:2.0:oob');
-        console.log('Attempting to get token with code:', code);
         const { tokens } = await oAuth2Client.getToken(code);
-        console.log('Tokens received:', tokens);
         oAuth2Client.setCredentials(tokens);
         fs.writeFileSync(TOKEN_PATH, JSON.stringify(tokens));
-        console.log('Token saved to:', TOKEN_PATH);
         return oAuth2Client;
     } catch (err) {
         console.error('completeAuth error:', err.message, err.stack);
@@ -71,9 +67,7 @@ async function getUserEmail(auth) {
     }
     const gmail = google.gmail({ version: 'v1', auth });
     try {
-        console.log('Fetching user profile with auth credentials:', auth.credentials);
         const res = await gmail.users.getProfile({ userId: 'me' });
-        console.log('getUserEmail response:', res.data);
         return res.data.emailAddress;
     } catch (err) {
         console.error('getUserEmail error:', err.message, err.stack);
@@ -85,7 +79,7 @@ async function getEmails() {
     const auth = await authorize();
     const gmail = google.gmail({ version: 'v1', auth });
 
-    if (!config || !config.rules) {
+    if (!config || !config.rules || config.rules.length === 0) {
         return;
     }
 
@@ -109,16 +103,11 @@ async function getEmails() {
             return;
         }
 
-        // E-postaları en eskiden en yeniye doğru işlemek için diziyi ters çevir (FIFO)
         messages.reverse();
 
         for (const message of messages) {
             try {
-                if (processedEmails.has(message.id)) {
-                    continue;
-                }
-
-                if (sharedState.emailQueue.some(item => item.messageId === message.id)) {
+                if (processedEmails.has(message.id) || sharedState.emailQueue.some(item => item.messageId === message.id)) {
                     continue;
                 }
 
@@ -127,20 +116,23 @@ async function getEmails() {
                 const subject = headers.find(header => header.name === 'Subject')?.value || '[Konu yok]';
                 const from = headers.find(header => header.name === 'From')?.value || '[Gönderici yok]';
                 const receivedAt = new Date(parseInt(msg.data.internalDate)).toLocaleString();
-
                 const body = getEmailBody(msg.data.payload);
-
                 const emailData = { from, subject, body, messageId: message.id, receivedAt };
 
-                if (sharedState.isServiceActive) {
-                    await whatsapp.sendToWhatsApp(emailData);
-                    processedEmails.add(message.id);
-                    fs.writeFileSync(PROCESSED_EMAILS_PATH, JSON.stringify([...processedEmails]));
+                if (sharedState.isServiceActive && whatsapp.isWhatsAppReady) {
+                    try {
+                        await whatsapp.sendToWhatsApp(emailData);
+                        processedEmails.add(message.id);
+                        fs.writeFileSync(PROCESSED_EMAILS_PATH, JSON.stringify([...processedEmails]));
+                    } catch (err) {
+                        console.error('WhatsApp’a gönderim hatası:', err.message, err.stack);
+                        sharedState.emailQueue.push(emailData);
+                    }
                 } else {
                     sharedState.emailQueue.push(emailData);
                 }
             } catch (err) {
-                console.error('getEmails error for message:', message.id, err.message);
+                console.error('getEmails error for message:', message.id, err.message, err.stack);
             }
         }
     } catch (err) {
@@ -149,9 +141,14 @@ async function getEmails() {
 }
 
 async function processEmailQueue() {
+    if (!sharedState.isServiceActive) {
+        return;
+    }
+    if (!whatsapp.isWhatsAppReady || !whatsapp.client) {
+        return;
+    }
     const queue = [...sharedState.emailQueue];
     sharedState.emailQueue = [];
-
     for (const emailData of queue) {
         try {
             if (processedEmails.has(emailData.messageId)) {
@@ -161,8 +158,8 @@ async function processEmailQueue() {
             processedEmails.add(emailData.messageId);
             fs.writeFileSync(PROCESSED_EMAILS_PATH, JSON.stringify([...processedEmails]));
         } catch (err) {
-            console.error('processEmailQueue error:', err.message);
-            sharedState.emailQueue.push(emailData);
+            console.error('processEmailQueue hata:', emailData.messageId, err.message, err.stack);
+            sharedState.emailQueue.push(emailData); // Hata durumunda kuyruğa geri ekle
         }
     }
 }
