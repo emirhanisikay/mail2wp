@@ -34,7 +34,7 @@ Bu uygulama, Gmail API ve Baileys (WhatsApp Web API) kütüphanelerini kullanara
 
 1.  **Projeyi Klonlayın:**
     ```bash
-    git clone <proje-linkiniz>
+    git clone https://github.com/emirhanisikay/mail2wp.git
     cd <proje-klasoru>
     ```
 
